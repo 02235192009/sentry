@@ -288,6 +288,8 @@ function Visualize({error, setError}: VisualizeProps) {
   const isTimeSeriesWidget = usesTimeSeriesData(state.displayType);
   const isBigNumberWidget = state.displayType === DisplayType.BIG_NUMBER;
   const isTableWidget = state.displayType === DisplayType.TABLE;
+  const isCategoricalBarWidget = state.displayType === DisplayType.CATEGORICAL_BAR;
+
   let hiddenKeys: string[] = [];
   if (state.dataset === WidgetType.TRACEMETRICS) {
     hiddenKeys = HiddenTraceMetricSearchFields;
@@ -347,14 +349,50 @@ function Visualize({error, setError}: VisualizeProps) {
 
   const datasetConfig = useMemo(() => getDatasetConfig(state.dataset), [state.dataset]);
 
+  // Determines whether "Add Series/Column/Equation" buttons are shown:
+  // - Time-series chart widgets: can add multiple y-axis series
+  // - Table widgets: can add multiple columns
+  // - Big Number widgets: can add fields only if equations are enabled for the dataset
+  // - Categorical Bar widgets: limited to a single aggregate, so adding is disabled
+  const canAddFields =
+    !isCategoricalBarWidget &&
+    (isTimeSeriesWidget ||
+      isTableWidget ||
+      (isBigNumberWidget && datasetConfig.enableEquations));
+
   // Determines which state field stores the visualization fields:
   // - Time-series charts (Line, Area, Bar): use state.yAxis for aggregates
   // - Tables, Big Numbers: use state.fields for all columns (fields + aggregates)
-  const fields = isTimeSeriesWidget ? state.yAxis : state.fields;
+  // - Categorical Bars: use exactly two state.fields. One is of `function` type, configured here.
+  //   the other is of `field` type and configured in the X axis selector.
+  const usesYAxis = isTimeSeriesWidget && !isCategoricalBarWidget;
+
+  const allFields = usesYAxis ? state.yAxis : state.fields;
+  const fields = isCategoricalBarWidget
+    ? allFields?.filter(f => f.kind === FieldValueKind.FUNCTION)
+    : allFields;
   const linkedDashboards = state.linkedDashboards || [];
-  const updateAction = isTimeSeriesWidget
+  const updateAction = usesYAxis
     ? BuilderStateAction.SET_Y_AXIS
     : BuilderStateAction.SET_FIELDS;
+
+  // For categorical bars, we need to preserve X-axis field entries (FIELD kind)
+  // when updating aggregates. This is the inverse of XAxisSelector's logic.
+  const xAxisFields = useMemo(
+    () =>
+      isCategoricalBarWidget
+        ? (state.fields?.filter(f => f.kind === FieldValueKind.FIELD) ?? [])
+        : [],
+    [isCategoricalBarWidget, state.fields]
+  );
+
+  // Helper to wrap payload for categorical bars, preserving X-axis fields
+  const wrapFieldsPayload = (newAggregates: QueryFieldValue[]): QueryFieldValue[] => {
+    if (isCategoricalBarWidget) {
+      return [...xAxisFields, ...newAggregates];
+    }
+    return newAggregates;
+  };
 
   const fieldOptions = useMemo(() => {
     // Explicitly merge numeric and string tags to ensure filtering
@@ -557,7 +595,9 @@ function Visualize({error, setError}: VisualizeProps) {
               if (activeIndex !== overIndex) {
                 dispatch({
                   type: updateAction,
-                  payload: arrayMove(fields ?? [], activeIndex, overIndex),
+                  payload: wrapFieldsPayload(
+                    arrayMove(fields ?? [], activeIndex, overIndex)
+                  ),
                 });
               }
             }
@@ -708,8 +748,10 @@ function Visualize({error, setError}: VisualizeProps) {
                                 onUpdate={value => {
                                   dispatch({
                                     type: updateAction,
-                                    payload: fields.map((_field, i) =>
-                                      i === index ? {..._field, field: value} : _field
+                                    payload: wrapFieldsPayload(
+                                      fields.map((_field, i) =>
+                                        i === index ? {..._field, field: value} : _field
+                                      )
                                     ),
                                   });
                                   setError?.({...error, queries: []});
@@ -737,8 +779,10 @@ function Visualize({error, setError}: VisualizeProps) {
                                 onUpdate={value => {
                                   dispatch({
                                     type: updateAction,
-                                    payload: fields.map((_field, i) =>
-                                      i === index ? {..._field, field: value} : _field
+                                    payload: wrapFieldsPayload(
+                                      fields.map((_field, i) =>
+                                        i === index ? {..._field, field: value} : _field
+                                      )
                                     ),
                                   });
                                   setError?.({...error, queries: []});
@@ -816,7 +860,7 @@ function Visualize({error, setError}: VisualizeProps) {
                                               ] = value;
                                               dispatch({
                                                 type: updateAction,
-                                                payload: newFields,
+                                                payload: wrapFieldsPayload(newFields),
                                               });
                                               setError?.({...error, queries: []});
                                             }}
@@ -842,7 +886,10 @@ function Visualize({error, setError}: VisualizeProps) {
                                         return;
                                       }
                                       newFields[index]!.function[1] = value;
-                                      dispatch({type: updateAction, payload: newFields});
+                                      dispatch({
+                                        type: updateAction,
+                                        payload: wrapFieldsPayload(newFields),
+                                      });
                                       setError?.({...error, queries: []});
                                     }}
                                   />
@@ -861,7 +908,10 @@ function Visualize({error, setError}: VisualizeProps) {
                                 const newFields = cloneDeep(fields);
                                 newFields[index]!.alias = e.target.value;
                                 dispatch(
-                                  {type: updateAction, payload: newFields},
+                                  {
+                                    type: updateAction,
+                                    payload: wrapFieldsPayload(newFields),
+                                  },
                                   {updateUrl: false}
                                 );
                               }}
@@ -869,7 +919,10 @@ function Visualize({error, setError}: VisualizeProps) {
                                 const newFields = cloneDeep(fields);
                                 newFields[index]!.alias = e.target.value;
                                 dispatch(
-                                  {type: updateAction, payload: newFields},
+                                  {
+                                    type: updateAction,
+                                    payload: wrapFieldsPayload(newFields),
+                                  },
                                   {updateUrl: true}
                                 );
                                 trackAnalytics('dashboards_views.widget_builder.change', {
@@ -939,8 +992,9 @@ function Visualize({error, setError}: VisualizeProps) {
                               onClick={() => {
                                 dispatch({
                                   type: updateAction,
-                                  payload:
-                                    fields?.filter((_field, i) => i !== index) ?? [],
+                                  payload: wrapFieldsPayload(
+                                    fields?.filter((_field, i) => i !== index) ?? []
+                                  ),
                                 });
 
                                 if (
@@ -997,9 +1051,7 @@ function Visualize({error, setError}: VisualizeProps) {
         </DndContext>
       </StyledFieldGroup>
 
-      {(isTimeSeriesWidget ||
-        isTableWidget ||
-        (isBigNumberWidget && datasetConfig.enableEquations)) && (
+      {canAddFields && (
         <AddButtons>
           <AddButton
             priority="link"
@@ -1014,7 +1066,7 @@ function Visualize({error, setError}: VisualizeProps) {
             onClick={() => {
               dispatch({
                 type: updateAction,
-                payload: [...(fields ?? []), cloneDeep(defaultField)],
+                payload: wrapFieldsPayload([...(fields ?? []), cloneDeep(defaultField)]),
               });
 
               trackAnalytics('dashboards_views.widget_builder.change', {
@@ -1044,10 +1096,10 @@ function Visualize({error, setError}: VisualizeProps) {
                 onClick={() => {
                   dispatch({
                     type: updateAction,
-                    payload: [
+                    payload: wrapFieldsPayload([
                       ...(fields ?? []),
                       {kind: FieldValueKind.EQUATION, field: ''},
-                    ],
+                    ]),
                   });
 
                   trackAnalytics('dashboards_views.widget_builder.change', {
