@@ -1,10 +1,10 @@
-import {PluginIcon} from 'sentry/plugins/components/pluginIcon';
+// import {PluginIcon} from 'sentry/plugins/components/pluginIcon';
 import type {DocIntegration} from 'sentry/types/integrations';
 
-import {BaseAvatar, type BaseAvatarProps} from './baseAvatar/baseAvatar';
+import {Avatar, type UploadBaseAvatarProps} from './avatar';
 
-interface DocIntegrationAvatarProps extends BaseAvatarProps {
-  docIntegration?: DocIntegration;
+interface DocIntegrationAvatarProps extends UploadBaseAvatarProps {
+  docIntegration: DocIntegration;
   ref?: React.Ref<HTMLSpanElement>;
 }
 
@@ -14,15 +14,15 @@ export function DocIntegrationAvatar({
   ...props
 }: DocIntegrationAvatarProps) {
   return (
-    <BaseAvatar
+    <Avatar
       {...props}
       ref={ref}
       type="upload"
       title={docIntegration?.name}
-      uploadUrl={docIntegration?.avatar?.avatarUrl}
-      backupAvatar={
-        <PluginIcon size={props.size} pluginId={docIntegration?.slug ?? ''} />
-      }
+      uploadUrl={docIntegration?.avatar?.avatarUrl ?? ''}
+      // backupAvatar={
+      //   <PluginIcon size={props.size} pluginId={docIntegration?.slug ?? ''} />
+      // }
     />
   );
 }

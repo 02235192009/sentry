@@ -5,10 +5,7 @@ import color from 'color';
 import type {Theme} from 'sentry/utils/theme';
 
 // eslint-disable-next-line no-relative-import-paths/no-relative-import-paths
-import {
-  baseAvatarStyles,
-  type BaseAvatarStyleProps,
-} from '../baseAvatar/baseAvatarComponentStyles';
+import {baseAvatarStyles, type BaseAvatarStyleProps} from '../avatarComponentStyles';
 
 interface LetterAvatarProps
   extends React.HTMLAttributes<SVGSVGElement>,

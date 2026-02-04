@@ -3,7 +3,7 @@ import {Tooltip} from '@sentry/scraps/tooltip';
 import {PlatformList} from 'sentry/components/platformList';
 import type {AvatarProject} from 'sentry/types/project';
 
-import type {BaseAvatarProps} from './baseAvatar/baseAvatar';
+import type {BaseAvatarProps} from './avatar';
 
 interface ProjectAvatarProps extends BaseAvatarProps {
   project: AvatarProject;

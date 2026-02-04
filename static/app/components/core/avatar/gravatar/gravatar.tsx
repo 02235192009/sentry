@@ -6,10 +6,7 @@ import * as qs from 'query-string';
 import ConfigStore from 'sentry/stores/configStore';
 
 // eslint-disable-next-line no-relative-import-paths/no-relative-import-paths
-import {
-  baseAvatarStyles,
-  type BaseAvatarStyleProps,
-} from '../baseAvatar/baseAvatarComponentStyles';
+import {baseAvatarStyles, type BaseAvatarStyleProps} from '../avatarComponentStyles';
 
 interface GravatarProps
   extends BaseAvatarStyleProps,

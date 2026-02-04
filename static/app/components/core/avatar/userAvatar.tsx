@@ -4,9 +4,14 @@ import type {Actor} from 'sentry/types/core';
 import type {AvatarUser} from 'sentry/types/user';
 import {userDisplayName} from 'sentry/utils/formatters';
 
-import {BaseAvatar, type BaseAvatarProps} from './baseAvatar/baseAvatar';
+import {
+  Avatar,
+  type GravatarBaseAvatarProps,
+  type LetterBaseAvatarProps,
+  type UploadBaseAvatarProps,
+} from './avatar';
 
-export interface UserAvatarProps extends BaseAvatarProps {
+export interface UserAvatarProps extends UploadBaseAvatarProps {
   user: Actor | AvatarUser | undefined;
   gravatar?: boolean;
   ref?: React.Ref<HTMLSpanElement | SVGSVGElement | HTMLImageElement>;
@@ -31,7 +36,6 @@ export function UserAvatar({
     return null;
   }
 
-  const type = inferAvatarType(user, gravatar);
   let tooltip: React.ReactNode = null;
 
   if (renderTooltip) {
@@ -42,48 +46,53 @@ export function UserAvatar({
     tooltip = userDisplayName(user);
   }
 
-  return (
-    <BaseAvatar
-      round
-      ref={ref}
-      type={type}
-      tooltip={tooltip}
-      {...props}
-      {...getAvatarProps(user)}
-    />
-  );
+  return <Avatar ref={ref} tooltip={tooltip} {...getUserAvatarProps(user)} />;
 }
 
-function getAvatarProps(user: AvatarUser | Actor) {
-  return isActor(user)
-    ? {
-        gravatarId: '',
-        letterId: user.name,
-        title: user.name,
-        uploadUrl: '',
-      }
-    : {
-        uploadUrl: user.avatar?.avatarUrl ?? '',
-        gravatarId: user.email?.toLowerCase(),
+function getUserAvatarProps(
+  user: Actor | AvatarUser
+): GravatarBaseAvatarProps | LetterBaseAvatarProps | UploadBaseAvatarProps {
+  if (isActor(user)) {
+    return {
+      type: 'letter_avatar',
+      letterId: user.name,
+      title: user.name,
+    };
+  }
+
+  switch (user.avatar?.avatarType) {
+    case 'letter_avatar':
+      return {
+        type: 'letter_avatar',
         letterId: user.email || user.username || user.id || user.ip_address,
         title: user.name || user.email || user.username || '',
       };
+    case 'upload':
+      return {
+        type: 'upload',
+        uploadUrl: user.avatar?.avatarUrl ?? '',
+      };
+    case 'gravatar':
+      if (!user.email) {
+        return {
+          type: 'letter_avatar',
+          letterId: user.email || user.username || user.id || user.ip_address,
+          title: user.name || user.email || user.username || '',
+        };
+      }
+      return {
+        type: 'gravatar',
+        gravatarId: user.email.toLowerCase(),
+      };
+    default:
+      return {
+        type: 'letter_avatar',
+        letterId: user.email || user.username || user.id || user.ip_address,
+        title: user.name || user.email || user.username || '',
+      };
+  }
 }
 
 function isActor(maybe: AvatarUser | Actor): maybe is Actor {
   return typeof (maybe as AvatarUser).email === 'undefined';
-}
-
-function inferAvatarType(user: AvatarUser | Actor, gravatar: boolean | undefined) {
-  if (isActor(user)) {
-    return 'letter_avatar';
-  }
-  if (user.avatar) {
-    return user.avatar.avatarType;
-  }
-  if (user.options?.avatarType) {
-    return user.options.avatarType;
-  }
-
-  return user.email && gravatar ? 'gravatar' : 'letter_avatar';
 }

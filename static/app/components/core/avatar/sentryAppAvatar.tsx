@@ -1,7 +1,7 @@
 import {IconGeneric} from 'sentry/icons';
 import type {AvatarSentryApp} from 'sentry/types/integrations';
 
-import {BaseAvatar, type BaseAvatarProps} from './baseAvatar/baseAvatar';
+import {BaseAvatar, type BaseAvatarProps} from './avatar';
 
 interface SentryAppAvatarProps extends BaseAvatarProps {
   sentryApp: AvatarSentryApp | undefined;

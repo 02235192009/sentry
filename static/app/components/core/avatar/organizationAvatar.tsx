@@ -3,9 +3,15 @@ import * as Sentry from '@sentry/react';
 import type {OrganizationSummary} from 'sentry/types/organization';
 import {explodeSlug} from 'sentry/utils';
 
-import {BaseAvatar, type BaseAvatarProps} from './baseAvatar/baseAvatar';
+import {
+  Avatar,
+  type AvatarProps,
+  type GravatarBaseAvatarProps,
+  type LetterBaseAvatarProps,
+  type UploadBaseAvatarProps,
+} from './avatar';
 
-interface OrganizationAvatarProps extends BaseAvatarProps {
+interface OrganizationAvatarProps extends AvatarProps {
   organization: OrganizationSummary | undefined;
   ref?: React.Ref<HTMLSpanElement>;
 }
@@ -21,18 +27,64 @@ export function OrganizationAvatar({
     return null;
   }
 
-  const slug = organization.slug || '';
-  const title = explodeSlug(slug);
-
   return (
-    <BaseAvatar
+    <Avatar
       ref={ref}
+      tooltip={organization.slug ?? ''}
+      title={explodeSlug(organization.slug ?? '')}
       {...props}
-      type={organization.avatar?.avatarType || 'letter_avatar'}
-      uploadUrl={organization.avatar?.avatarUrl}
-      letterId={slug}
-      tooltip={slug}
-      title={title}
+      {...getOrganizationAvatarProps(organization)}
     />
   );
+}
+
+function getOrganizationAvatarProps(
+  organization: OrganizationSummary
+): LetterBaseAvatarProps | UploadBaseAvatarProps | GravatarBaseAvatarProps {
+  if (!organization.avatar?.avatarType) {
+    return {
+      type: 'letter_avatar',
+      letterId: organization.slug,
+      title: organization.name,
+    };
+  }
+
+  switch (organization.avatar?.avatarType) {
+    case 'letter_avatar':
+      return {
+        type: 'letter_avatar',
+        letterId: organization.slug,
+        title: organization.name,
+      };
+    case 'upload':
+      if (!organization.avatar?.avatarUrl) {
+        return {
+          type: 'letter_avatar',
+          letterId: organization.slug,
+          title: organization.name,
+        };
+      }
+      return {
+        type: 'upload',
+        uploadUrl: organization.avatar?.avatarUrl,
+      };
+    case 'gravatar':
+      if (!organization.avatar?.avatarUrl) {
+        return {
+          type: 'letter_avatar',
+          letterId: organization.slug,
+          title: organization.name,
+        };
+      }
+      return {
+        type: 'gravatar',
+        gravatarId: organization.avatar.avatarUrl,
+      };
+    default:
+      return {
+        type: 'letter_avatar',
+        letterId: organization.slug,
+        title: organization.name,
+      };
+  }
 }

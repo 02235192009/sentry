@@ -3,10 +3,7 @@ import styled from '@emotion/styled';
 import {Image, type ImageProps} from '@sentry/scraps/image';
 
 // eslint-disable-next-line no-relative-import-paths/no-relative-import-paths
-import {
-  baseAvatarStyles,
-  type BaseAvatarStyleProps,
-} from '../baseAvatar/baseAvatarComponentStyles';
+import {baseAvatarStyles, type BaseAvatarStyleProps} from '../avatarComponentStyles';
 
 interface ImageAvatarProps extends ImageProps, BaseAvatarStyleProps {}
 
